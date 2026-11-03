@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "game-balancer"
+version = "0.1.0"
+description = "Automated playtesting and balance tuning for board and card games"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+  { name = "Karan Manish Shah" },
+  { name = "Nidhi Nimmagadda" },
+  { name = "Arya Atul Nandgude" },
+]
+license = { text = "MIT" }
+
+[project.scripts]
+balancer = "balancer.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["balancer*"]
