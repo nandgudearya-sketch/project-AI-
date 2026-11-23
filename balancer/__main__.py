@@ -136,6 +136,12 @@ def cmd_evaluate(args):
     run_all(workers=args.workers, quick=args.quick)
 
 
+def cmd_figures(args):
+    from .evaluation.figures import make_figures
+    make_figures(args.out, n_seeds=args.seeds, ladder_games=args.ladder_games,
+                 workers=args.workers)
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="balancer",
                                  description="Automated playtesting and balance tuning")
@@ -203,6 +209,13 @@ def main(argv=None):
     p.add_argument("--workers", type=int, default=None)
     p.add_argument("--quick", action="store_true")
     p.set_defaults(fn=cmd_evaluate)
+
+    p = sub.add_parser("figures", help="make report charts (needs matplotlib)")
+    p.add_argument("--out", default="docs/figures")
+    p.add_argument("--seeds", type=int, default=500, help="paired seeds for ablation")
+    p.add_argument("--ladder-games", type=int, default=120)
+    p.add_argument("--workers", type=int, default=None)
+    p.set_defaults(fn=cmd_figures)
 
     args = ap.parse_args(argv)
     args.fn(args)
