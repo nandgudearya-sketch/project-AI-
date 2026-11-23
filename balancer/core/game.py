@@ -129,6 +129,16 @@ class Game(ABC):
         Return None for actions not worth tracking (e.g. 'end turn')."""
         return None
 
+    def ablate(self, state: Any, player: int, label: str, replacement: str) -> None:
+        """Ablation hook (optional). In a freshly created ``state``, replace every
+        copy of ``label`` that ``player`` owns with ``replacement``, in place,
+        keeping card positions so the deal is otherwise identical.
+
+        The ablation test (``analysis/ablation.py``) uses this to measure how
+        much one card is worth: play the same seeds with and without the swap
+        and compare. Games without cards can leave it unimplemented."""
+        raise NotImplementedError(f"{self.name} does not support card ablation")
+
     def opening_labels(self, state: Any, player: int) -> set[str]:
         """Labels ``player`` starts the game with (e.g. cards in the opening
         hand). Because this is decided by the shuffle alone, comparing win
