@@ -3,7 +3,8 @@ import random
 import unittest
 
 from balancer.agents import GreedyAgent, MCTSAgent, RandomAgent, make_agent
-from balancer.analysis import analyze, run_ablation, wilson
+from balancer.analysis import (ablation_by_skill, analyze, format_skill, run_ablation,
+                               wilson)
 from balancer.games import GAMES, make_game
 from balancer.games.ember import CARD_NAMES, END
 from balancer.sim import play_game, run_games
@@ -182,6 +183,29 @@ class TestAblation(unittest.TestCase):
                            cls().all_action_labels(), n_seeds=150, workers=1)
         self.assertEqual(rep.cards[0].label, "flare")
         self.assertTrue(rep.has("strong", "flare"))
+
+
+class TestSkillDependence(unittest.TestCase):
+    def setUp(self):
+        self.cls = GAMES["ember"]
+        self.labels = self.cls().all_action_labels()
+
+    def test_equivalent_agents_show_no_skill_effect(self):
+        # A weighted agent with zero weight plays exactly like greedy, so on the
+        # same seeds every card's value must match and nothing is flagged.
+        rep = ablation_by_skill("ember", self.cls.preset_params(), self.labels,
+                                ["greedy", "weighted:spark=0"], n_seeds=30, workers=1)
+        for card in rep.order:
+            self.assertEqual(rep.spread(card)[0], rep.spread(card)[1])
+        self.assertFalse(rep.issues)
+
+    def test_report_shape(self):
+        rep = ablation_by_skill("ember", self.cls.preset_params(), self.labels,
+                                ["random", "greedy"], n_seeds=30, workers=1)
+        self.assertEqual(sorted(rep.order), sorted(c for c in self.labels if c != "ember"))
+        self.assertIn("random", format_skill(rep))
+        with self.assertRaises(ValueError):
+            ablation_by_skill("ember", self.cls.preset_params(), self.labels, ["greedy"])
 
 
 class TestWebAPI(unittest.TestCase):

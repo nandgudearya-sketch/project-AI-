@@ -147,3 +147,49 @@ def make_figures(out_dir="docs/figures", n_seeds=500, ladder_games=120, workers=
 
     log(f"Saved 4 figures (PNG + CSV) to {out_dir}/")
     return out_dir
+
+
+# Ordinal blue ramp (light -> dark = weaker -> stronger agent).
+SKILL_RAMP = ["#86b6ef", "#3987e5", "#1c5cab", "#0d366b"]
+
+
+def skill_figure(rep, out_dir="docs/figures", name="card_value_by_skill"):
+    """Dot plot: one row per card, one dot per agent (darker = stronger), joined
+    by a thin line so the change with skill is easy to see. Error bars are 95% CIs."""
+    plt = _plt()
+    os.makedirs(out_dir, exist_ok=True)
+    agents = rep.agents
+    colors = (SKILL_RAMP * 2)[-len(agents):] if len(agents) <= 4 else None
+    if colors is None:
+        raise ValueError("skill_figure supports up to 4 agents")
+    cards = rep.order
+    fig, ax = plt.subplots(figsize=(7, 0.5 * len(cards) + 1.6))
+    y = {c: len(cards) - 1 - i for i, c in enumerate(cards)}
+    off = {a: (i - (len(agents) - 1) / 2) * 0.16 for i, a in enumerate(agents)}
+    for c in cards:
+        xs = [rep.values[c][a][0] for a in agents]
+        ax.plot(xs, [y[c] + off[a] for a in agents], color="#c9c8c3", lw=1.5, zorder=1)
+    for a, col in zip(agents, colors):
+        xs = [rep.values[c][a][0] for c in cards]
+        es = [1.96 * rep.values[c][a][1] for c in cards]
+        ax.errorbar(xs, [y[c] + off[a] for c in cards], xerr=es, fmt="o", ms=7,
+                    color=col, ecolor=col, elinewidth=1, capsize=0,
+                    markeredgecolor=SURFACE, markeredgewidth=1.5, label=a, zorder=2)
+    flagged = {s for _, s, _ in rep.issues}
+    ax.set_yticks([y[c] for c in cards],
+                  [f"{c}  *" if c in flagged else c for c in cards])
+    ax.axvline(0, color=MUTED, lw=1)
+    ax.grid(axis="y", visible=False)
+    ax.set_xlabel(f"Card value vs {rep.reference} (change in win rate)")
+    ax.set_title("Card value by player skill (weakest → strongest)", loc="left",
+                 fontsize=11, color=INK)
+    _pct(ax)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.09), ncol=len(agents),
+              handletextpad=0.3)
+    if flagged:
+        fig.text(0.01, 0.01, "* value changes significantly with skill", color=INK2,
+                 fontsize=8.5)
+    _save(fig, out_dir, name, ["card"] + [f"{a}_{k}" for a in agents for k in ("value", "se")],
+          [[c] + [f"{x:.4f}" for a in agents for x in rep.values[c][a]] for c in cards])
+    plt.close(fig)
+    return os.path.join(out_dir, f"{name}.png")
