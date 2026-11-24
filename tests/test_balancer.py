@@ -99,6 +99,44 @@ class TestAgents(unittest.TestCase):
         self.assertGreater(greedy_score, 0.8)
 
 
+class TestPigRace(unittest.TestCase):
+    def setUp(self):
+        self.g = make_game("pig")
+
+    def test_random_games_terminate_with_valid_winner(self):
+        for seed in range(200):
+            s = self.g.initial_state(seed)
+            rng = random.Random(seed)
+            for _ in range(5000):
+                if self.g.is_terminal(s):
+                    break
+                self.g.step(s, rng.choice(self.g.legal_actions(s)))
+            self.assertTrue(self.g.is_terminal(s))
+            self.assertIn(self.g.winner(s), (0, 1, None))
+
+    def test_hold_needs_turn_points_and_bust_clears_them(self):
+        s = self.g.initial_state(0)
+        self.assertEqual(self.g.legal_actions(s), ["roll"])
+        s.rolls[s.idx] = 5
+        self.g.step(s, "roll")
+        self.assertEqual((s.turn_pts, s.player), (5, 0))
+        self.assertEqual(self.g.legal_actions(s), ["roll", "hold"])
+        s.rolls[s.idx] = 1
+        self.g.step(s, "roll")
+        self.assertEqual((s.turn_pts, s.player, s.scores[0]), (0, 1, 0))
+
+    def test_determinize_hides_future_dice_but_keeps_past(self):
+        s = self.g.initial_state(3)
+        self.g.step(s, "roll")
+        d = self.g.determinize(s, 0, random.Random(99))
+        self.assertEqual(d.rolls[:s.idx], s.rolls[:s.idx])
+        self.assertNotEqual(d.rolls[s.idx:], s.rolls[s.idx:])
+
+    def test_second_player_compensation_is_applied(self):
+        g = make_game("pig", {"p2_start_points": 4})
+        self.assertEqual(g.initial_state(0).scores, [0, 4])
+
+
 class TestAnalysis(unittest.TestCase):
     def test_wilson(self):
         lo, hi = wilson(50, 100)

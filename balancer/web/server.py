@@ -223,6 +223,105 @@ def config():
     }
 
 
+# ------------------------------------------------------------------- Pig API
+PIG_PRESET_NOTES = {
+    "default": "No compensation: the first player has a small edge.",
+    "compensated": "Second player starts with 4 points, which evens things out.",
+    "planted_p2_edge": "Second player starts with 12 points (too generous).",
+    "planted_short": "Target is only 20, so games are very short.",
+    "planted_timeout": "Target 100 but only 20 turns, so most games time out.",
+}
+
+
+def _pig_view(sess):
+    g, s, me = sess["game"], sess["state"], sess["seat"]
+    my_turn = (not s.done) and s.player == me
+    result = None
+    if s.done:
+        result = "draw" if s.win is None else ("win" if s.win == me else "loss")
+    return {
+        "id": sess["id"], "preset": sess["preset"], "difficulty": sess["difficulty"],
+        "target": g.params["target"], "max_turns": g.params["max_turns"],
+        "turn": min(s.turns + 1, g.params["max_turns"]),
+        "your_turn": my_turn, "turn_pts": s.turn_pts,
+        "you": s.scores[me], "opponent": s.scores[1 - me], "seat": me + 1,
+        "can_hold": my_turn and s.turn_pts > 0,
+        "last_roll": sess.get("last_roll"),
+        "log": sess["log"][-40:], "result": result,
+    }
+
+
+def _pig_step(sess, a, who):
+    g, s = sess["game"], sess["state"]
+    before_pts, idx = s.turn_pts, s.idx
+    g.step(s, a)
+    if a == "hold":
+        text = f"held and banked {before_pts}"
+    else:
+        r = s.rolls[idx % len(s.rolls)]
+        sess["last_roll"] = r
+        text = f"rolled a {r}" + (" (bust, turn points lost)" if r == 1 else "")
+    sess["log"].append({"who": who, "text": text, "turn": s.turns + 1})
+
+
+def _pig_run_ai(sess):
+    g, s, me = sess["game"], sess["state"], sess["seat"]
+    while not s.done and s.player != me:
+        _pig_step(sess, sess["agent"].act(g, s, sess["rng"]), "ai")
+    if s.done:
+        msg = ("The game is a draw." if s.win is None else
+               "You win." if s.win == me else "The AI wins.")
+        sess["log"].append({"who": "system", "text": msg, "turn": s.turns + 1})
+
+
+def pig_new(preset="default", difficulty="medium", seat=1, seed=None):
+    if preset not in PIG_PRESET_NOTES:
+        raise ValueError(f"Unknown preset '{preset}'")
+    if difficulty not in DIFFICULTIES:
+        raise ValueError(f"Unknown difficulty '{difficulty}'")
+    if seat not in (1, 2):
+        raise ValueError("seat must be 1 or 2")
+    seed = random.randrange(10**9) if seed is None else int(seed)
+    g = make_game("pig", GAMES["pig"].preset_params(preset))
+    # Greedy's turn planner does not suit Pig (see README); Medium uses a light MCTS.
+    spec = "mcts:40" if difficulty == "medium" else DIFFICULTIES[difficulty]["spec"]
+    sess = {"id": uuid.uuid4().hex[:12], "game": g, "state": g.initial_state(seed),
+            "seat": seat - 1, "agent": make_agent(spec), "rng": random.Random(seed + 1),
+            "log": [], "preset": preset, "difficulty": difficulty, "touched": time.time()}
+    sess["log"].append({"who": "system", "turn": 1, "text":
+                        "You go first." if seat == 1 else "The AI goes first."})
+    _pig_run_ai(sess)
+    with _lock:
+        if len(_sessions) >= MAX_SESSIONS:
+            del _sessions[min(_sessions, key=lambda k: _sessions[k]["touched"])]
+        _sessions[sess["id"]] = sess
+    return _pig_view(sess)
+
+
+def pig_act(session_id, action):
+    with _lock:
+        sess = _sessions.get(session_id)
+    if sess is None:
+        raise KeyError("This game has expired. Start a new game.")
+    g, s = sess["game"], sess["state"]
+    if s.done:
+        raise ValueError("The game is over. Start a new game.")
+    if s.player != sess["seat"]:
+        raise ValueError("It is not your turn.")
+    if action not in g.legal_actions(s):
+        raise ValueError("You can't do that right now.")
+    _pig_step(sess, action, "you")
+    _pig_run_ai(sess)
+    sess["touched"] = time.time()
+    return _pig_view(sess)
+
+
+def pig_config():
+    return {"difficulties": [{"id": k, **{x: v[x] for x in ("label", "about")}}
+                             for k, v in DIFFICULTIES.items()],
+            "presets": [{"id": k, "note": v} for k, v in PIG_PRESET_NOTES.items()]}
+
+
 # ---------------------------------------------------------------- HTTP layer
 class Handler(BaseHTTPRequestHandler):
     server_version = "EmberDuel/1.0"
@@ -246,6 +345,11 @@ class Handler(BaseHTTPRequestHandler):
         if self.path in ("/", "/index.html"):
             self._send(HTTPStatus.OK, (STATIC / "index.html").read_bytes(),
                        "text/html; charset=utf-8")
+        elif self.path == "/pig":
+            self._send(HTTPStatus.OK, (STATIC / "pig.html").read_bytes(),
+                       "text/html; charset=utf-8")
+        elif self.path == "/api/pig/config":
+            self._json(HTTPStatus.OK, pig_config())
         elif self.path == "/api/config":
             self._json(HTTPStatus.OK, config())
         else:
@@ -258,6 +362,11 @@ class Handler(BaseHTTPRequestHandler):
             if self.path == "/api/new":
                 out = new_game(data.get("preset", "default"), data.get("difficulty", "medium"),
                                int(data.get("seat", 1)), data.get("seed"))
+            elif self.path == "/api/pig/new":
+                out = pig_new(data.get("preset", "default"), data.get("difficulty", "medium"),
+                              int(data.get("seat", 1)), data.get("seed"))
+            elif self.path == "/api/pig/act":
+                out = pig_act(data.get("id", ""), data.get("action"))
             elif self.path == "/api/act":
                 out = act(data.get("id", ""), data.get("action"))
             elif self.path == "/api/simulate":
@@ -277,7 +386,7 @@ def serve(host="127.0.0.1", port=8000, open_browser=True, workers=None):
     Handler.workers = workers
     httpd = ThreadingHTTPServer((host, port), Handler)
     url = f"http://{host}:{port}"
-    print(f"Ember Duel is running at {url}  (press Ctrl+C to stop)")
+    print(f"Ember Duel is running at {url}  |  Pig Race at {url}/pig  (press Ctrl+C to stop)")
     if open_browser:
         threading.Timer(0.6, lambda: webbrowser.open(url)).start()
     try:

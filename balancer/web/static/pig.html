@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pig Race</title>
+<style>
+:root { color-scheme: light dark;
+  --bg:#E7ECF0; --surface:#F7F9FB; --sunk:#DCE3E9; --line:#C3CDD6; --ink:#17232F; --muted:#55697B;
+  --accent:#D2561A; --good:#3D8A47; --bad:#B3341F; }
+@media (prefers-color-scheme: dark) { :root {
+  --bg:#16202B; --surface:#1F2C3A; --sunk:#121A23; --line:#33475B; --ink:#E8EEF3; --muted:#93A7B9;
+  --accent:#FF8A3D; --good:#7BC47F; --bad:#FF8A7A; } }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 "Segoe UI", system-ui, sans-serif; }
+.wrap { max-width: 760px; margin: 0 auto; padding: 20px 16px 48px; }
+h1 { margin:0 0 4px; font-size: 2rem; } .sub { color:var(--muted); margin:0 0 16px; }
+a { color: var(--accent); }
+.setup { display:flex; flex-wrap:wrap; gap:12px 18px; align-items:end; padding-bottom:16px; border-bottom:1px solid var(--line); margin-bottom:12px; }
+.field { display:grid; gap:4px; } .field span { font-size:.85rem; color:var(--muted); }
+select, button { font:inherit; color:inherit; padding:8px 12px; border:1px solid var(--line); border-radius:10px; background:var(--surface); }
+button { cursor:pointer; font-weight:600; } button:disabled { opacity:.45; cursor:not-allowed; }
+button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+.board { display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:14px; }
+.card { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:14px; text-align:center; }
+.card .label { color:var(--muted); font-size:.85rem; } .card .num { font-size:2.4rem; font-weight:800; }
+.mid { margin:14px 0; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:16px; text-align:center; }
+.die { display:inline-grid; place-items:center; width:64px; height:64px; border-radius:12px; border:2px solid var(--ink);
+  font-size:2rem; font-weight:800; background:var(--surface); margin-bottom:6px; }
+.die.bust { border-color:var(--bad); color:var(--bad); }
+.risk { font-size:1.1rem; } .risk b { color:var(--accent); font-size:1.5rem; }
+.actions { display:flex; gap:10px; justify-content:center; margin-top:12px; } .actions button { min-width:140px; padding:12px; font-size:1.05rem; }
+.status { text-align:center; min-height:1.6em; font-weight:700; margin-top:10px; }
+.win { color:var(--good); } .loss { color:var(--bad); }
+.log { margin-top:16px; background:var(--sunk); border-radius:12px; padding:10px 14px; max-height:240px; overflow:auto; font-size:.92rem; }
+.log div { padding:2px 0; } .you { color:var(--accent); } .ai { color:var(--muted); } .system { font-weight:700; }
+.note { color:var(--muted); font-size:.9rem; margin-top:4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Pig Race</h1>
+  <p class="sub">Roll to build turn points. A 1 loses them all. Hold to bank them. First to the target wins. · <a href="/">Ember Duel</a></p>
+
+  <div class="setup">
+    <label class="field"><span>Difficulty</span><select id="diff"></select></label>
+    <label class="field"><span>Version</span><select id="preset"></select></label>
+    <label class="field"><span>You go</span><select id="seat"><option value="1">First</option><option value="2">Second</option></select></label>
+    <button class="primary" id="start">New game</button>
+  </div>
+  <div class="note" id="presetNote"></div>
+
+  <div id="game" hidden>
+    <div class="board">
+      <div class="card"><div class="label">You (seat <span id="seatNo"></span>)</div><div class="num" id="you">0</div></div>
+      <div class="card"><div class="label">Opponent</div><div class="num" id="opp">0</div></div>
+    </div>
+    <div class="mid">
+      <div class="die" id="die">-</div>
+      <div class="risk">Turn points at risk: <b id="risk">0</b></div>
+      <div class="note">Target <span id="target"></span> · turn <span id="turn"></span> of <span id="maxturn"></span></div>
+      <div class="actions">
+        <button class="primary" id="roll">Roll</button>
+        <button id="hold">Hold</button>
+      </div>
+      <div class="status" id="status"></div>
+    </div>
+    <div class="log" id="log" aria-live="polite"></div>
+  </div>
+</div>
+<script>
+let sid = null;
+const $ = id => document.getElementById(id);
+async function api(path, body) {
+  const r = await fetch(path, body ? {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)} : {});
+  const j = await r.json(); if (!r.ok) throw new Error(j.error || "Request failed"); return j;
+}
+function render(v) {
+  sid = v.id; $("game").hidden = false;
+  $("you").textContent = v.you; $("opp").textContent = v.opponent; $("seatNo").textContent = v.seat;
+  $("risk").textContent = v.turn_pts; $("target").textContent = v.target;
+  $("turn").textContent = v.turn; $("maxturn").textContent = v.max_turns;
+  const d = $("die"); d.textContent = v.last_roll == null ? "-" : v.last_roll; d.classList.toggle("bust", v.last_roll === 1);
+  $("roll").disabled = !v.your_turn; $("hold").disabled = !v.can_hold;
+  const st = $("status");
+  if (v.result) {
+    st.textContent = v.result === "win" ? "You win!" : v.result === "loss" ? "The AI wins." : "Draw.";
+    st.className = "status " + (v.result === "win" ? "win" : v.result === "loss" ? "loss" : "");
+  } else {
+    st.textContent = v.your_turn ? "Your turn: roll or hold." : "Opponent is thinking...";
+    st.className = "status";
+  }
+  $("log").innerHTML = v.log.map(e => '<div class="' + e.who + '">' +
+    (e.who === "system" ? "" : (e.who === "you" ? "You " : "AI ")) + e.text + "</div>").join("");
+  $("log").scrollTop = 1e9;
+}
+async function act(a) {
+  try { render(await api("/api/pig/act", {id: sid, action: a})); }
+  catch (e) { $("status").textContent = e.message; }
+}
+async function start() {
+  try { render(await api("/api/pig/new", {preset: $("preset").value, difficulty: $("diff").value, seat: +$("seat").value})); }
+  catch (e) { alert(e.message); }
+}
+$("roll").onclick = () => act("roll"); $("hold").onclick = () => act("hold"); $("start").onclick = start;
+api("/api/pig/config").then(c => {
+  $("diff").innerHTML = c.difficulties.map(d => '<option value="' + d.id + '">' + d.label + ": " + d.about + "</option>").join("");
+  $("diff").value = "medium";
+  $("preset").innerHTML = c.presets.map(p => '<option value="' + p.id + '">' + p.id + "</option>").join("");
+  const notes = Object.fromEntries(c.presets.map(p => [p.id, p.note]));
+  const upd = () => { $("presetNote").textContent = notes[$("preset").value]; };
+  $("preset").onchange = upd; upd();
+});
+</script>
+</body>
+</html>

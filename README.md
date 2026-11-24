@@ -52,6 +52,7 @@ balancer/
   games/
     ember.py              Ember Duel: our original card game (main test case + planted imbalances)
     nim.py                Subtraction Nim: second game proving the engine is general
+    pig.py                Pig Race: push-your-luck dice game (luck, no hidden hand)
     __init__.py           Game registry
   agents/
     simple.py             random, greedy (turn planner), weighted (strategy), human
@@ -96,6 +97,21 @@ play any affordable cards. First to 40 points wins; after 40 total turns the
 higher score wins. The second player starts with 4 points and 1 extra card as
 compensation. Cards score points, draw cards, give energy, steal points, or
 add growth (points every turn). Every number is a parameter: `python -m balancer list`.
+
+## Pig Race rules
+
+Two players alternate turns. On your turn, `roll` a die (a 1 busts: you lose
+your turn points and the turn ends; anything else adds to your turn points) or
+`hold` to bank them. Reaching `target` (50) wins at once; after `max_turns`
+turns the higher score wins. Going first is an edge, so the second player gets
+`p2_start_points` as compensation (0 by default, which gives seat 1 about 53%;
+4 brings it to about 48%). Presets: `compensated`, `planted_p2_edge`,
+`planted_short`, `planted_timeout`. Use `mcts:N` agents: greedy's turn planner
+judges the state before a turn-ending action, which suits Ember but not Pig.
+
+```bash
+python -m balancer simulate --game pig --preset compensated --agents mcts:100 mcts:100 --games 1000
+```
 
 ## Commands
 
