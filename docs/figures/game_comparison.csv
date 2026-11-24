@@ -1,0 +1,4 @@
+game,type,seat1,seat1_lo,seat1_hi,median_length,skill,skill_lo,skill_hi,default_issues,planted,detected
+ember,"card game, hidden hands",0.4900,0.4502,0.5299,16.0,1.0000,0.9812,1.0000,,planted_card,True
+nim,"perfect information, solved",0.9833,0.9696,0.9909,7.0,0.9850,0.9568,0.9949,seat:first,pile 12,True
+grid,perfect-information board,0.5133,0.4734,0.5531,16.0,1.0000,0.9812,1.0000,,planted_seat,True
