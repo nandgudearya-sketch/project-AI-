@@ -3,7 +3,7 @@ import random
 import unittest
 
 from balancer.agents import GreedyAgent, MCTSAgent, RandomAgent, make_agent
-from balancer.analysis import analyze, wilson
+from balancer.analysis import analyze, run_ablation, wilson
 from balancer.games import GAMES, make_game
 from balancer.games.ember import CARD_NAMES, END
 from balancer.sim import play_game, run_games
@@ -157,6 +157,31 @@ class TestAnalysis(unittest.TestCase):
         recs = run_games("ember", params, ["greedy", "greedy"], 400, workers=1)
         rep = analyze(recs, cls().all_action_labels())
         self.assertTrue(rep.has("dead", "inferno"))
+
+
+class TestAblation(unittest.TestCase):
+    def test_ablate_swaps_only_that_players_cards(self):
+        g = make_game("ember")
+        s = g.initial_state(9)
+        before = [s.hands[p][:] + s.decks[p][:] for p in (0, 1)]
+        flare, ember = CARD_NAMES.index("flare"), CARD_NAMES.index("ember")
+        g.ablate(s, 0, "flare", "ember")
+        after = s.hands[0] + s.decks[0]
+        self.assertNotIn(flare, after)
+        self.assertEqual(after, [ember if c == flare else c for c in before[0]])
+        self.assertEqual(s.hands[1] + s.decks[1], before[1])
+
+    def test_unsupported_game_raises(self):
+        g = make_game("nim")
+        with self.assertRaises(NotImplementedError):
+            g.ablate(g.initial_state(0), 0, "x", "y")
+
+    def test_finds_planted_card(self):
+        cls = GAMES["ember"]
+        rep = run_ablation("ember", cls.preset_params("planted_card"),
+                           cls().all_action_labels(), n_seeds=150, workers=1)
+        self.assertEqual(rep.cards[0].label, "flare")
+        self.assertTrue(rep.has("strong", "flare"))
 
 
 class TestWebAPI(unittest.TestCase):
