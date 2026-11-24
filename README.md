@@ -15,7 +15,7 @@ Pure Python 3.10+, standard library only. No installation needed.
 git clone https://github.com/nandgudearya-sketch/project-AI-.git
 cd project-AI-
 pip install -e .                          # optional: adds a `balancer` command
-python -m unittest discover tests         # 21 tests, ~6 s
+python -m unittest discover tests         # 23 tests, ~1 min
 python -m balancer list                   # games, presets, tunable parameters
 python -m balancer simulate --preset planted_card
 python -m balancer evaluate               # the full evaluation (~3 min on 1 core)
@@ -139,6 +139,9 @@ python -m balancer play --opponent mcts:200
 
 # Report figures (pip install matplotlib first; ~1 min)
 python -m balancer figures
+
+# Does card value depend on skill? (~15 min with mcts:200; weakest agent first)
+python -m balancer ablate --skill random greedy mcts:50 mcts:200 --figure docs/figures
 ```
 
 Agent specs: `random`, `greedy`, `mcts:N`, `weighted:spark=0.5;siphon=-1`, `human`.
@@ -230,6 +233,43 @@ flagging threshold of 3), a candidate for a closer look with more seeds.
 
 ![Agent skill ladder](docs/figures/agent_ladder.png)
 
+**5. Card value depends on skill.** The same ablation, run once per agent with
+that agent in both seats (500 paired seeds per card and seat for each agent).
+A card is flagged when its value differs between two agents by more than 10
+points with |z| > 3.
+
+| Card | random | greedy | mcts:50 | mcts:200 |
+|---|---|---|---|---|
+| inferno * | +8.9% | +22.3% | +26.3% | +27.6% |
+| blaze | +8.4% | +12.9% | +11.2% | +10.6% |
+| siphon | −0.1% | −3.1% | +4.3% | +3.9% |
+| bellows | −2.7% | +0.8% | +0.9% | +1.2% |
+| flare | +0.5% | +0.4% | −1.3% | −0.4% |
+| kindle | −5.2% | −6.5% | −6.9% | −2.1% |
+| phoenix * | +2.1% | −13.4% | −4.5% | −6.2% |
+| spark | −2.8% | −6.5% | −9.9% | −12.4% |
+| hearth * | −3.7% | −11.0% | −11.7% | −17.3% |
+
+![Card value by skill](docs/figures/card_value_by_skill.png)
+
+What this means for a designer:
+
+- **`inferno` rewards skill.** It is worth +9% to a random player but +28% to
+  MCTS-200 (z = +7.0). A 7-cost finisher only pays off for players who plan
+  their energy toward it, so playtests with beginners would underrate it.
+- **`hearth` gets worse as skill rises** (−4% → −17%, z = −5.1), and `spark`
+  follows the same trend. A likely reason: against a weak opponent a slow
+  points-per-turn engine has time to pay off, while strong opponents end the
+  game before it does.
+  To a beginner the card may feel fine, while experts should avoid it.
+- **`phoenix` exposes the greedy heuristic.** It is worth −13% to greedy but
+  only −5% to −6% to MCTS. Search plays it much better than the one-turn
+  heuristic does, so greedy-only balance reports misjudge it. This is the
+  same kind of mispricing the strategy search looks for.
+- Most cards (`blaze`, `bellows`, `flare`, `kindle`, `siphon`) keep roughly the
+  same value at every skill level, so the greedy-agent results earlier in this
+  README are a fair guide for them.
+
 ## Design decisions worth explaining in your report
 
 - **Noise is the central problem.** Simulation results are random, so
@@ -238,8 +278,9 @@ flagging threshold of 3), a candidate for a closer look with more seeds.
   tuner reports "NOT VERIFIED" if an improvement doesn't survive fresh seeds.
 - **Balance depends on skill.** A card can be strong for experts and useless
   for beginners. Run `simulate` with several agent pairs and report results
-  per skill level. Always use the same agent in both seats when measuring
-  seat advantage.
+  per skill level, and `ablate --skill` to measure each card's value per skill
+  level (result 5 above). Always use the same agent in both seats when
+  measuring seat advantage.
 - **Strategies are defined relative to greedy.** Weighted agents are greedy
   plus per-card preferences, so all-zero weights equals greedy and 50% is the
   fair baseline. A strategy that beats greedy has found a card the heuristic

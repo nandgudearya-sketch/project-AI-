@@ -8,7 +8,8 @@ import sys
 import time
 
 from .agents import make_agent
-from .analysis import analyze, format_ablation, format_report, run_ablation, skill_gap
+from .analysis import (ablation_by_skill, analyze, format_ablation, format_report,
+                       format_skill, run_ablation, skill_gap)
 from .games import GAMES, make_game
 from .search import card_focus_probe, format_ga, format_probe, ga_search
 from .sim import Simulator, play_game
@@ -74,11 +75,18 @@ def cmd_ablate(args):
     labels = make_game(args.game, params).all_action_labels()
     t = time.time()
     try:
-        rep = run_ablation(args.game, params, labels, args.agent, args.reference,
-                           args.seeds, workers=args.workers)
+        if args.skill:
+            rep = ablation_by_skill(args.game, params, labels, args.skill, args.reference,
+                                    args.seeds, workers=args.workers, log=print)
+        else:
+            rep = run_ablation(args.game, params, labels, args.agent, args.reference,
+                               args.seeds, workers=args.workers)
     except (NotImplementedError, ValueError) as e:
         sys.exit(str(e))
-    print(format_ablation(rep))
+    print(format_skill(rep) if args.skill else format_ablation(rep))
+    if args.skill and args.figure:
+        from .evaluation.figures import skill_figure
+        print(f"Saved {skill_figure(rep, args.figure)}")
     print(f"\n({time.time() - t:.1f}s)")
     if args.json:
         with open(args.json, "w") as f:
@@ -163,6 +171,11 @@ def main(argv=None):
     p = sub.add_parser("ablate", help="measure each card's value by swapping it out")
     _common(p)
     p.add_argument("--agent", default="greedy", help="agent used in both seats")
+    p.add_argument("--skill", nargs="+", metavar="AGENT",
+                   help="compare card value across agents, weakest first, "
+                        "e.g. --skill random greedy mcts:50")
+    p.add_argument("--figure", metavar="DIR",
+                   help="with --skill: also save a chart (needs matplotlib), e.g. docs/figures")
     p.add_argument("--reference", default="ember", help="card swapped in as the baseline")
     p.add_argument("--seeds", type=int, default=500, help="paired seeds per card and seat")
     p.add_argument("--json", help="save the report as JSON")

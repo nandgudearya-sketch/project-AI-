@@ -165,3 +165,118 @@ def format_ablation(rep: AblationReport) -> str:
     else:
         out.append("  None detected at current thresholds.")
     return "\n".join(out)
+
+
+# --------------------------------------------------------------------------
+# Skill dependence: does a card's value change with the skill of the player?
+# --------------------------------------------------------------------------
+#
+# A card can be strong in expert hands and weak for beginners (or the reverse).
+# Designers care because playtesters are usually not experts. We run the same
+# ablation once per agent on the same seeds, with that agent in both seats, and
+# compare each card's value across agents. Runs with different agents are
+# different games, so the difference between two agents is tested as two
+# independent estimates: z = (v_a - v_b) / sqrt(se_a^2 + se_b^2).
+
+DEFAULT_SKILL_THRESHOLDS = dict(
+    skill_margin=0.10,   # flag if a card's value differs by this much between agents ...
+    skill_z=3.0,         # ... with this many standard errors
+)
+
+
+@dataclass
+class SkillReport:
+    game: str
+    agents: list              # ordered weakest -> strongest
+    reference: str
+    n_seeds: int
+    values: dict              # card -> {agent: (value, se)}
+    order: list               # cards, sorted by value for the strongest agent
+    issues: list = field(default_factory=list)   # (kind, card, message)
+
+    def to_dict(self):
+        return asdict(self)
+
+    def has(self, kind, subject=None):
+        return any(k == kind and (subject is None or s == subject)
+                   for k, s, _ in self.issues)
+
+    def spread(self, card):
+        """(weakest-agent value, strongest-agent value, z of the difference)."""
+        (v0, s0), (v1, s1) = self.values[card][self.agents[0]], self.values[card][self.agents[-1]]
+        return v0, v1, _z(v1 - v0, math.sqrt(s0 ** 2 + s1 ** 2))
+
+
+def ablation_by_skill(game_name, params, labels, agents=("random", "greedy", "mcts:50"),
+                      reference="ember", n_seeds=500, base_seed=70_000, workers=None,
+                      sim=None, thresholds=None, log=None) -> SkillReport:
+    """Run ``run_ablation`` for each agent (list them weakest first) and flag cards
+    whose value changes significantly with skill."""
+    t = dict(DEFAULT_SKILL_THRESHOLDS)
+    t.update(thresholds or {})
+    agents = list(agents)
+    if len(agents) < 2:
+        raise ValueError("Skill comparison needs at least two agents")
+
+    def run(s):
+        out = {}
+        for a in agents:
+            if log:
+                log(f"  ablation with {a} ...")
+            out[a] = run_ablation(game_name, params, labels, a, reference, n_seeds,
+                                  base_seed, sim=s)
+        return out
+
+    if sim is None:
+        with Simulator(workers) as s:
+            reps = run(s)
+    else:
+        reps = run(sim)
+
+    values = {}
+    for a, rep in reps.items():
+        for c in rep.cards:
+            values.setdefault(c.label, {})[a] = (c.value, c.se)
+    strongest = agents[-1]
+    order = sorted(values, key=lambda c: -values[c][strongest][0])
+    rep = SkillReport(game_name, agents, reference, n_seeds, values, order)
+
+    for card in order:
+        v = values[card]
+        # The largest significant gap between any two agents.
+        best = None
+        for i, a in enumerate(agents):
+            for b in agents[i + 1:]:
+                diff = v[b][0] - v[a][0]
+                z = _z(diff, math.sqrt(v[a][1] ** 2 + v[b][1] ** 2))
+                if abs(diff) > t["skill_margin"] and abs(z) > t["skill_z"]:
+                    if best is None or abs(diff) > abs(best[2]):
+                        best = (a, b, diff, z)
+        if best:
+            a, b, diff, z = best
+            better = b if diff > 0 else a
+            rep.issues.append((
+                "skill", card,
+                f"'{card}' depends on skill: worth {v[a][0]:+.1%} for {a} but "
+                f"{v[b][0]:+.1%} for {b} (z={z:+.1f}); it rewards the {better} player more."))
+    return rep
+
+
+def format_skill(rep: SkillReport) -> str:
+    w = max(10, *(len(a) + 2 for a in rep.agents))
+    out = [f"=== Card value by skill level: {rep.game} ===",
+           f"Ablation vs '{rep.reference}', {rep.n_seeds} paired seeds per card and seat, "
+           f"same agent in both seats.",
+           "",
+           f"  {'card':<10}" + "".join(f"{a:>{w}}" for a in rep.agents)
+           + f"{'change z':>10}"]
+    for card in rep.order:
+        cells = "".join(f"{rep.values[card][a][0]:>+{w}.1%}" for a in rep.agents)
+        out.append(f"  {card:<10}{cells}{rep.spread(card)[2]:>+10.1f}")
+    out += ["", f"  'change z' compares the weakest ({rep.agents[0]}) and strongest "
+                f"({rep.agents[-1]}) agent.", "", "Issues"]
+    if rep.issues:
+        out += [f"  [{k}] {m}" for k, _, m in rep.issues]
+    else:
+        out.append("  No card's value changes significantly with skill.")
+    return "\n".join(out)
