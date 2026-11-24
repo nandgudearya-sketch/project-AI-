@@ -22,6 +22,7 @@ from ..analysis.balance import analyze
 from ..games import GAMES, make_game
 from ..games.ember import CARD_NAMES, END
 from ..sim.harness import Simulator
+from . import games_api
 
 STATIC = Path(__file__).parent / "static"
 
@@ -352,6 +353,20 @@ class Handler(BaseHTTPRequestHandler):
             self._json(HTTPStatus.OK, pig_config())
         elif self.path == "/api/config":
             self._json(HTTPStatus.OK, config())
+        elif self.path in ("/games", "/games.html"):
+            self._send(HTTPStatus.OK, (STATIC / "games.html").read_bytes(),
+                       "text/html; charset=utf-8")
+        elif self.path == "/games/figure.png" and games_api.COMPARE_FILE.with_suffix(".png").exists():
+            self._send(HTTPStatus.OK, games_api.COMPARE_FILE.with_suffix(".png").read_bytes(),
+                       "image/png")
+        elif self.path.startswith("/api/games/"):
+            try:
+                out = games_api.handle_get(self.path)
+            except KeyError as e:
+                return self._json(HTTPStatus.NOT_FOUND, {"error": str(e.args[0])})
+            if out is None:
+                return self._json(HTTPStatus.NOT_FOUND, {"error": "Not found"})
+            self._json(HTTPStatus.OK, out)
         else:
             self._json(HTTPStatus.NOT_FOUND, {"error": "Not found"})
 
@@ -373,6 +388,10 @@ class Handler(BaseHTTPRequestHandler):
                 out = simulate(data.get("preset", "default"),
                                data.get("agents", ["greedy", "greedy"]),
                                data.get("games", 1000), self.workers)
+            elif self.path.startswith("/api/games/"):
+                out = games_api.handle_post(self.path, data, self.workers)
+                if out is None:
+                    return self._json(HTTPStatus.NOT_FOUND, {"error": "Not found"})
             else:
                 return self._json(HTTPStatus.NOT_FOUND, {"error": "Not found"})
             self._json(HTTPStatus.OK, out)

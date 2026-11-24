@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Claim</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root {
+  color-scheme: light;
+  --bg: #E7ECF0; --surface: #F7F9FB; --sunk: #DCE3E9; --line: #C3CDD6;
+  --ink: #17232F; --muted: #55697B;
+  --ember: #D2561A; --sky: #2C77AE; --moss: #3D8A47; --gold: #9A6C05; --bad: #B4362F;
+  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #16202B; --surface: #1F2C3A; --sunk: #121A23; --line: #33475B;
+    --ink: #E8EEF3; --muted: #93A7B9;
+    --ember: #FF8A3D; --sky: #6FB7E8; --moss: #7BC47F; --gold: #F2C14E; --bad: #F08A80;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #16202B; --surface: #1F2C3A; --sunk: #121A23; --line: #33475B;
+  --ink: #E8EEF3; --muted: #93A7B9;
+  --ember: #FF8A3D; --sky: #6FB7E8; --moss: #7BC47F; --gold: #F2C14E; --bad: #F08A80;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 var(--body); }
+button, select, input { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--ember); outline-offset: 2px; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 20px 16px 48px; }
+header { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+h1 { font: 800 clamp(1.9rem, 4vw, 2.6rem)/1 var(--display); letter-spacing: -.02em; margin: 0; }
+h1 small { display: block; font: 400 .95rem/1.4 var(--body); color: var(--muted); margin-top: 6px; letter-spacing: 0; }
+h2 { font: 700 1.25rem/1.2 var(--display); margin: 26px 0 10px; }
+.tabs { display: flex; background: var(--sunk); border-radius: 999px; padding: 4px; gap: 2px; }
+.tabs button { border: 0; background: none; padding: 8px 16px; border-radius: 999px; cursor: pointer; color: var(--muted); font-weight: 700; }
+.tabs button[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 0 var(--line); }
+.pill { border: 1px solid var(--line); background: none; border-radius: 999px; padding: 7px 12px; cursor: pointer; color: var(--muted); text-decoration: none; }
+.setup { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: end; padding: 14px 0 18px; border-bottom: 1px solid var(--line); margin-bottom: 22px; }
+.field { display: grid; gap: 4px; }
+.field > span { font-size: .85rem; color: var(--muted); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; flex-wrap: wrap; }
+.seg button { border: 0; background: var(--surface); padding: 7px 13px; cursor: pointer; border-right: 1px solid var(--line); }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+select, input[type=number] { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; }
+select { min-width: 13rem; }
+.primary { background: var(--ember); color: #fff; border: 0; border-radius: 10px; padding: 9px 18px; font-weight: 700; cursor: pointer; }
+:root[data-theme="dark"] .primary { color: #1B1006; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .primary { color: #1B1006; } }
+.primary:disabled { opacity: .45; cursor: default; }
+.note { color: var(--muted); font-size: .92rem; margin: 6px 0 0; }
+.hidden { display: none !important; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+.grid2 { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 20px; }
+@media (max-width: 760px) { .grid2 { grid-template-columns: 1fr; } }
+
+/* scoreboard */
+.scores { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.side { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
+.side .who { color: var(--muted); font-size: .9rem; }
+.side .big { font: 800 2.2rem/1.1 var(--display); font-variant-numeric: tabular-nums; }
+.side.you { border-color: var(--ember); }
+.side .meta { font-size: .9rem; color: var(--muted); }
+.status { font: 700 1.15rem/1.3 var(--display); margin: 4px 0 14px; min-height: 1.5em; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.actions button { background: var(--surface); border: 2px solid var(--ember); color: var(--ink); border-radius: 12px; padding: 12px 18px; font-weight: 700; cursor: pointer; min-width: 9rem; }
+.actions button:hover { background: var(--sunk); }
+
+/* board for Claim */
+.board { display: grid; gap: 6px; max-width: 420px; }
+.cell { aspect-ratio: 1; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); display: grid; place-items: center; font: 800 1.5rem var(--display); position: relative; }
+.cell.free.can { cursor: pointer; border: 2px dashed var(--ember); }
+.cell.free.can:hover { background: var(--sunk); }
+.cell.you { background: var(--ember); color: #fff; border-color: transparent; }
+.cell.ai { background: var(--sky); color: #fff; border-color: transparent; }
+.cell .gain { position: absolute; bottom: 4px; right: 6px; font: 700 .72rem var(--body); color: var(--muted); }
+.legend { display: flex; gap: 14px; font-size: .88rem; color: var(--muted); margin-top: 8px; }
+.sw { display: inline-block; width: .9em; height: .9em; border-radius: 3px; vertical-align: -1px; margin-right: 5px; }
+
+/* log */
+.log { list-style: none; margin: 0; padding: 0; max-height: 360px; overflow: auto; font-size: .92rem; }
+.log li { padding: 5px 0; border-bottom: 1px solid var(--line); }
+.log .ai b { color: var(--sky); } .log .you b { color: var(--ember); } .log .system { color: var(--muted); }
+
+/* tables */
+table { width: 100%; border-collapse: collapse; font-size: .93rem; }
+th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 700; font-size: .85rem; }
+td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tbl { overflow-x: auto; }
+.tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: .8rem; font-weight: 700; }
+.pass { background: color-mix(in srgb, var(--moss) 20%, transparent); color: var(--moss); }
+.fail { background: color-mix(in srgb, var(--bad) 20%, transparent); color: var(--bad); }
+.issues { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.issues li { border-left: 4px solid var(--gold); padding: 6px 10px; background: var(--surface); border-radius: 6px; }
+.issues li b { text-transform: uppercase; font-size: .78rem; letter-spacing: .04em; color: var(--gold); margin-right: 6px; }
+.stat { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.stat .card .big { font: 800 1.8rem/1.1 var(--display); }
+.bar { height: 10px; background: var(--sunk); border-radius: 5px; position: relative; margin-top: 6px; }
+.bar i { position: absolute; top: 0; bottom: 0; background: var(--ember); border-radius: 5px; }
+.bar::after { content: ""; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 2px; background: var(--ink); opacity: .5; }
+.err { color: var(--bad); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Claim<small>A new original board game, checked by the same balance tool</small></h1>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <div class="tabs" role="tablist">
+        <button role="tab" aria-selected="true" data-tab="play">Play</button>
+        <button role="tab" aria-selected="false" data-tab="lab">Balance lab</button>
+        <button role="tab" aria-selected="false" data-tab="cmp">Compare games</button>
+      </div>
+      <a class="pill" href="/">← Ember Duel</a>
+      <button class="pill" id="theme" aria-label="Switch light or dark mode">Light / dark</button>
+    </div>
+  </header>
+
+  <!-- ============================== PLAY ============================== -->
+  <section id="play">
+    <div class="setup">
+      <label class="field"><span>Opponent</span><div class="seg" id="p-diff"></div></label>
+      <label class="field"><span>You play</span><div class="seg" id="p-seat">
+        <button data-v="1" aria-pressed="true">First</button><button data-v="2">Second</button></div></label>
+      <label class="field"><span>Version of the game</span><select id="p-preset"></select></label>
+      <button class="primary" id="p-new">New game</button>
+    </div>
+    <p class="note" id="p-rules"></p>
+    <div class="grid2" style="margin-top:18px">
+      <div>
+        <div class="scores" id="p-scores"></div>
+        <div class="status" id="p-status">Start a game to play against the AI.</div>
+        <div id="p-area"></div>
+      </div>
+      <div class="card"><h2 style="margin-top:0">What happened</h2><ul class="log" id="p-log"></ul></div>
+    </div>
+  </section>
+
+  <!-- ============================== LAB ============================== -->
+  <section id="lab" class="hidden">
+    <div class="setup">
+      <label class="field"><span>Game</span><select id="l-game"></select></label>
+      <label class="field"><span>Version</span><select id="l-preset"></select></label>
+      <label class="field"><span>Players</span><select id="l-agent"></select></label>
+      <label class="field"><span>Games</span><input type="number" id="l-n" value="600" min="20" max="2000" step="100"></label>
+      <button class="primary" id="l-run">Run analysis</button>
+    </div>
+    <p class="note" id="l-about"></p>
+    <div id="l-out" style="margin-top:16px"></div>
+  </section>
+
+  <!-- ============================== COMPARE ============================== -->
+  <section id="cmp" class="hidden">
+    <p class="note">The same agents and the same analyzer run on all three games, with no
+      game-specific analysis code. Each game has a <b>planted</b> version with one known
+      problem; the tool should find it.</p>
+    <div id="c-out" style="margin-top:16px"></div>
+  </section>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const pct = x => x == null ? "–" : (100 * x).toFixed(1) + "%";
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let CFG = null, VIEW = null, play = {game: "grid", diff: "medium", seat: 1};
+
+async function api(path, body) {
+  const r = await fetch(path, body ? {method: "POST", headers: {"Content-Type": "application/json"},
+                                      body: JSON.stringify(body)} : {});
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+
+/* ---------- theme & tabs ---------- */
+try { const t = localStorage.getItem("theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+$("theme").onclick = () => {
+  const dark = document.documentElement.dataset.theme === "dark" ||
+    (!document.documentElement.dataset.theme && matchMedia("(prefers-color-scheme: dark)").matches);
+  document.documentElement.dataset.theme = dark ? "light" : "dark";
+  try { localStorage.setItem("theme", document.documentElement.dataset.theme); } catch (e) {}
+};
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".tabs button").forEach(x => x.setAttribute("aria-selected", x === b));
+  ["play", "lab", "cmp"].forEach(id => $(id).classList.toggle("hidden", b.dataset.tab !== id));
+  if (b.dataset.tab === "cmp") loadCompare();
+});
+
+function seg(el, items, current, onpick) {
+  el.innerHTML = items.map(i => `<button data-v="${i.id}" aria-pressed="${i.id === current}">${esc(i.label)}</button>`).join("");
+  el.querySelectorAll("button").forEach(b => b.onclick = () => {
+    el.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b));
+    onpick(b.dataset.v);
+  });
+}
+const game = id => CFG.games.find(g => g.id === id);
+function presetOptions(sel, g) {
+  sel.innerHTML = g.presets.map(p => `<option value="${p.id}">${p.id === "default" ? "Balanced (default)" :
+    "Planted: " + esc(p.note)}</option>`).join("");
+}
+
+/* ---------- PLAY ---------- */
+function setupPlay() {
+  seg($("p-diff"), CFG.difficulties, play.diff, v => play.diff = v);
+  $("p-seat").querySelectorAll("button").forEach(b => b.onclick = () => {
+    $("p-seat").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b));
+    play.seat = +b.dataset.v;
+  });
+  presetOptions($("p-preset"), game(play.game));
+  $("p-rules").textContent = game(play.game).rules;
+  $("p-new").onclick = async () => {
+    try { render(await api("/api/games/new", {preset: $("p-preset").value,
+                                               difficulty: play.diff, seat: play.seat})); }
+    catch (e) { $("p-status").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+  };
+}
+async function move(a) {
+  try { render(await api("/api/games/act", {id: VIEW.id, action: a})); }
+  catch (e) { $("p-status").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+}
+function side(cls, who, big, meta) {
+  return `<div class="side ${cls}"><div class="who">${who}</div><div class="big">${big}</div><div class="meta">${meta}</div></div>`;
+}
+function render(v) {
+  VIEW = v;
+  const area = $("p-area");
+  $("p-scores").innerHTML = side("you", "You", v.you, "your squares are orange") +
+                            side("", "AI", v.ai, "AI squares are blue");
+  area.innerHTML = `<div class="board" style="grid-template-columns:repeat(${v.size},1fr)">` +
+    v.cells.map(c => `<div class="cell ${c.owner || "free"} ${c.gain != null ? "can" : ""}" data-a="${c.id}"
+      ${c.gain != null ? `role="button" tabindex="0" aria-label="Claim square ${c.id + 1}, worth ${c.gain}"` : ""}>
+      ${c.value}${c.gain != null ? `<span class="gain">+${c.gain}</span>` : ""}</div>`).join("") +
+    `</div><div class="legend"><span><i class="sw" style="background:var(--ember)"></i>You</span>
+     <span><i class="sw" style="background:var(--sky)"></i>AI</span><span>+n = points if you claim it</span>
+     <span>Neighbour bonus: +${v.adj_bonus} · Second player starts with ${v.p2_bonus}</span></div>`;
+  area.querySelectorAll("[data-a]").forEach(el => {
+    if (el.tagName === "BUTTON" || el.classList.contains("can")) {
+      el.onclick = () => move(+el.dataset.a);
+      el.onkeydown = e => { if (e.key === "Enter" || e.key === " ") move(+el.dataset.a); };
+    }
+  });
+  $("p-status").textContent = v.result ? ({win: "You win!", loss: "The AI wins.", draw: "It's a draw."}[v.result])
+                                       : (v.your_turn ? "Your move." : "AI is thinking…");
+  $("p-log").innerHTML = v.log.slice().reverse().map(l =>
+    `<li class="${l.who}">${l.who === "system" ? esc(l.text) : `<b>${l.who === "you" ? "You" : "AI"}</b> ${esc(l.text)}`}</li>`).join("");
+}
+
+/* ---------- LAB ---------- */
+function setupLab() {
+  $("l-game").innerHTML = CFG.games.map(g => `<option value="${g.id}">${esc(g.title)} (${esc(g.kind)})</option>`).join("");
+  $("l-agent").innerHTML = CFG.sim_agents.map(a => `<option value="${a}" ${a === "mcts:50" ? "selected" : ""}>${a} vs ${a}</option>`).join("");
+  const sync = () => { const g = game($("l-game").value); presetOptions($("l-preset"), g);
+                       $("l-about").textContent = "What this game tests: " + g.tests; };
+  $("l-game").onchange = sync; sync();
+  $("l-run").onclick = async () => {
+    const btn = $("l-run"); btn.disabled = true; btn.textContent = "Running…";
+    $("l-out").innerHTML = `<p class="note">Playing games… this can take up to a minute with MCTS.</p>`;
+    try {
+      const a = $("l-agent").value;
+      const r = await api("/api/games/simulate", {game: $("l-game").value, preset: $("l-preset").value,
+                                                   agents: [a, a], games: +$("l-n").value});
+      $("l-out").innerHTML = labHtml(r);
+    } catch (e) { $("l-out").innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+    btn.disabled = false; btn.textContent = "Run analysis";
+  };
+}
+function labHtml(r) {
+  const bar = (x, lo, hi) => `<div class="bar"><i style="left:${100*lo}%;width:${Math.max(1, 100*(hi-lo))}%"></i></div>`;
+  let h = `<div class="stat">
+    <div class="card"><div class="note">First player's score</div><div class="big">${pct(r.seat1)}</div>
+      ${bar(r.seat1, r.seat1_ci[0], r.seat1_ci[1])}<div class="note">95% CI ${pct(r.seat1_ci[0])}–${pct(r.seat1_ci[1])} · fair is 50%</div></div>
+    <div class="card"><div class="note">Search agent vs random</div><div class="big">${r.skill ? pct(r.skill.score) : "–"}</div>
+      <div class="note">${r.skill ? `95% CI ${pct(r.skill.ci[0])}–${pct(r.skill.ci[1])} · higher = more skill` : ""}</div></div>
+    <div class="card"><div class="note">Median game length</div><div class="big">${r.length.median}</div>
+      <div class="note">turns (10–90%: ${r.length.p10}–${r.length.p90})</div></div>
+  </div><h2>Findings</h2>`;
+  h += r.issues.length ? `<ul class="issues">${r.issues.map(i => `<li><b>${esc(i.kind)}</b>${esc(i.message)}</li>`).join("")}</ul>`
+                       : `<p>No problems found at the current thresholds.</p>`;
+  const labs = r.labels.filter(l => l.lift != null);
+  if (labs.length) {
+    h += `<h2>Card strength</h2><div class="tbl"><table><tr><th>Name</th>
+      <th class="num">Win-rate lift</th><th class="num">z</th></tr>` +
+      labs.sort((a, b) => b.lift - a.lift).map(l => `<tr><td>${esc(l.name)}</td><td class="num">${l.lift >= 0 ? "+" : ""}${pct(l.lift)}</td>
+      <td class="num">${l.z == null ? "–" : l.z.toFixed(1)}</td></tr>`).join("") + `</table></div>
+      <p class="note">Lift = win rate when dealt it minus win rate when not. It is dealt at random, so this is a fair comparison.</p>`;
+  }
+  return h + `<p class="note">${r.games} games of ${esc(r.agents.join(" vs "))} in ${r.seconds}s.</p>`;
+}
+
+/* ---------- COMPARE ---------- */
+async function loadCompare() {
+  try {
+    const {rows} = await api("/api/games/compare");
+    const title = id => (game(id) || {title: id}).title;
+    $("c-out").innerHTML = `<img src="/games/figure.png" alt="Bar charts of first-player score and skill score for each game" style="max-width:100%;border-radius:12px;margin-bottom:14px" onerror="this.remove()"><div class="tbl"><table><tr><th>Game</th><th>Type</th><th class="num">First player</th>
+      <th class="num">Skill vs random</th><th class="num">Median length</th><th>Issues on default rules</th>
+      <th>Planted problem</th><th>Found?</th></tr>` + rows.map(r => `<tr><td><b>${esc(title(r.game))}</b></td>
+      <td>${esc(r.kind)}</td><td class="num">${pct(r.seat1)}<br><span class="note">${pct(r.seat1_ci[0])}–${pct(r.seat1_ci[1])}</span></td>
+      <td class="num">${pct(r.skill)}</td><td class="num">${r.length_p50}</td>
+      <td>${r.default_issues.length ? r.default_issues.map(i => esc(i.join(": "))).join("<br>") : "none"}
+        ${r.note ? `<br><span class="note">${esc(r.note)}</span>` : ""}</td>
+      <td>${esc(r.tests)}<br><span class="note">${esc(r.planted)} → expect ${esc(r.expected.join(": "))}</span></td>
+      <td><span class="tag ${r.detected ? "pass" : "fail"}">${r.detected ? "PASS" : "FAIL"}</span></td></tr>`).join("") +
+      `</table></div><p class="note">${rows.filter(r => r.detected).length} of ${rows.length} planted problems found.
+       Saved results from <code>python -m balancer compare</code>; run it again to refresh.</p>`;
+  } catch (e) { $("c-out").innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+}
+
+api("/api/games/config").then(c => { CFG = c; setupPlay(); setupLab(); })
+  .catch(e => $("p-status").innerHTML = `<span class="err">Could not reach the server: ${esc(e.message)}</span>`);
+</script>
+</body>
+</html>

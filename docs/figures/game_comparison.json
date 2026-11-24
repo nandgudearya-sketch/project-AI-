@@ -1,0 +1,100 @@
+[
+  {
+    "game": "ember",
+    "kind": "card game, hidden hands",
+    "tests": "card strength",
+    "seat1": 0.49,
+    "seat1_ci": [
+      0.4501906813158825,
+      0.5299365573506817
+    ],
+    "length_p50": 16.0,
+    "skill": 1.0,
+    "skill_ci": [
+      0.9811539940816792,
+      1.0
+    ],
+    "default_issues": [],
+    "planted": "planted_card",
+    "expected": [
+      "dominant",
+      "flare"
+    ],
+    "detected": true,
+    "planted_issues": [
+      [
+        "dominant",
+        "flare"
+      ]
+    ],
+    "agent": "mcts:50",
+    "note": ""
+  },
+  {
+    "game": "nim",
+    "kind": "perfect information, solved",
+    "tests": "known theoretical answer",
+    "seat1": 0.9833333333333333,
+    "seat1_ci": [
+      0.9695944296370503,
+      0.9909223681456795
+    ],
+    "length_p50": 7.0,
+    "skill": 0.985,
+    "skill_ci": [
+      0.9568335194437212,
+      0.9948858548155077
+    ],
+    "default_issues": [
+      [
+        "seat",
+        "first"
+      ]
+    ],
+    "planted": "pile 12",
+    "expected": [
+      "seat",
+      "second"
+    ],
+    "detected": true,
+    "planted_issues": [
+      [
+        "seat",
+        "second"
+      ]
+    ],
+    "agent": "mcts:1000",
+    "note": "piles 13 and 12 are used; theory says pile 13 is a first-player win, so seat:first is the correct answer there"
+  },
+  {
+    "game": "grid",
+    "kind": "perfect-information board",
+    "tests": "first-move advantage",
+    "seat1": 0.5133333333333333,
+    "seat1_ci": [
+      0.4733817354628678,
+      0.5531152796483799
+    ],
+    "length_p50": 16.0,
+    "skill": 1.0,
+    "skill_ci": [
+      0.9811539940816792,
+      1.0
+    ],
+    "default_issues": [],
+    "planted": "planted_seat",
+    "expected": [
+      "seat",
+      "first"
+    ],
+    "detected": true,
+    "planted_issues": [
+      [
+        "seat",
+        "first"
+      ]
+    ],
+    "agent": "mcts:50",
+    "note": ""
+  }
+]

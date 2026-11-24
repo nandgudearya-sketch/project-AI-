@@ -150,6 +150,22 @@ def cmd_figures(args):
                  workers=args.workers)
 
 
+def cmd_compare(args):
+    from .evaluation.compare import (compare_figure, compare_games, format_compare,
+                                     rows_to_dicts)
+    t = time.time()
+    rows = compare_games(args.games_list, args.agent, args.strong, args.games,
+                         args.skill_games, workers=args.workers)
+    print(format_compare(rows, args.agent, args.strong))
+    print(f"\n({time.time() - t:.1f}s)")
+    if args.figure:
+        print(f"Saved {compare_figure(rows, args.figure)}")
+    if args.json:
+        with open(args.json, "w") as f:
+            json.dump(rows_to_dicts(rows), f, indent=2, default=str)
+        print(f"Saved {args.json}")
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="balancer",
                                  description="Automated playtesting and balance tuning")
@@ -229,6 +245,18 @@ def main(argv=None):
     p.add_argument("--ladder-games", type=int, default=120)
     p.add_argument("--workers", type=int, default=None)
     p.set_defaults(fn=cmd_figures)
+
+    p = sub.add_parser("compare", help="run the same balance checks on every game")
+    p.add_argument("--only", dest="games_list", nargs="+", choices=sorted(GAMES),
+                   help="compare only these games")
+    p.add_argument("--agent", default="mcts:50", help="self-play agent for each game")
+    p.add_argument("--strong", default="mcts:100", help="agent tested against random")
+    p.add_argument("--games", type=int, default=600, help="self-play games per variant")
+    p.add_argument("--skill-games", type=int, default=200)
+    p.add_argument("--figure", metavar="DIR", help="also save a chart, e.g. docs/figures")
+    p.add_argument("--json", help="save the results as JSON")
+    p.add_argument("--workers", type=int, default=None)
+    p.set_defaults(fn=cmd_compare)
 
     args = ap.parse_args(argv)
     args.fn(args)
