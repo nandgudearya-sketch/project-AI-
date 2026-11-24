@@ -292,13 +292,6 @@ class EmberDuel(Game):
     def opening_labels(self, s, player):
         return {CARD_NAMES[c] for c in s.hands[player]}
 
-    def ablate(self, s, player, label, replacement):
-        old, new = CARD_NAMES.index(label), CARD_NAMES.index(replacement)
-        for cards in (s.hands[player], s.decks[player]):
-            for i, c in enumerate(cards):
-                if c == old:
-                    cards[i] = new
-
     def turn_count(self, s):
         return s.total_turns
 

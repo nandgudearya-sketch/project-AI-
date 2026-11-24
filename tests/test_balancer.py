@@ -3,7 +3,7 @@ import random
 import unittest
 
 from balancer.agents import GreedyAgent, MCTSAgent, RandomAgent, make_agent
-from balancer.analysis import analyze, run_ablation, wilson
+from balancer.analysis import analyze, wilson
 from balancer.games import GAMES, make_game
 from balancer.games.ember import CARD_NAMES, END
 from balancer.sim import play_game, run_games
@@ -121,29 +121,35 @@ class TestAnalysis(unittest.TestCase):
         self.assertTrue(rep.has("dead", "inferno"))
 
 
-class TestAblation(unittest.TestCase):
-    def test_ablate_swaps_only_that_players_cards(self):
-        g = make_game("ember")
-        s = g.initial_state(9)
-        before = [s.hands[p][:] + s.decks[p][:] for p in (0, 1)]
-        flare, ember = CARD_NAMES.index("flare"), CARD_NAMES.index("ember")
-        g.ablate(s, 0, "flare", "ember")
-        after = s.hands[0] + s.decks[0]
-        self.assertNotIn(flare, after)
-        self.assertEqual(after, [ember if c == flare else c for c in before[0]])
-        self.assertEqual(s.hands[1] + s.decks[1], before[1])
+class TestWebAPI(unittest.TestCase):
+    def test_game_flow_hides_opponent_hand(self):
+        from balancer.web import server
+        v = server.new_game("default", "medium", 2, seed=4)
+        self.assertTrue(v["your_turn"])
+        self.assertIsInstance(v["opponent"]["hand"], int)
+        self.assertIsNone(v["opponent"]["revealed"])
+        for _ in range(200):
+            if v["result"]:
+                break
+            playable = [c["id"] for c in v["hand"] if c["playable"]]
+            v = server.act(v["id"], playable[0] if playable else -1)
+        self.assertIsNotNone(v["result"])
+        with self.assertRaises(ValueError):
+            server.act(v["id"], -1)
 
-    def test_unsupported_game_raises(self):
-        g = make_game("nim")
-        with self.assertRaises(NotImplementedError):
-            g.ablate(g.initial_state(0), 0, "x", "y")
+    def test_rejects_illegal_moves(self):
+        from balancer.web import server
+        v = server.new_game("default", "easy", 1, seed=1)
+        with self.assertRaises(ValueError):
+            server.act(v["id"], 999)
+        with self.assertRaises(KeyError):
+            server.act("missing", -1)
 
-    def test_finds_planted_card(self):
-        cls = GAMES["ember"]
-        rep = run_ablation("ember", cls.preset_params("planted_card"),
-                           cls().all_action_labels(), n_seeds=150, workers=1)
-        self.assertEqual(rep.cards[0].label, "flare")
-        self.assertTrue(rep.has("strong", "flare"))
+    def test_simulate_endpoint(self):
+        from balancer.web import server
+        r = server.simulate("planted_seat", ["greedy", "greedy"], 400, workers=1)
+        self.assertGreater(r["seat1"], 0.6)
+        self.assertIn("seat", [i["kind"] for i in r["issues"]])
 
 
 if __name__ == "__main__":

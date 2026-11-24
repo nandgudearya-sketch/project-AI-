@@ -15,11 +15,34 @@ Pure Python 3.10+, standard library only. No installation needed.
 git clone https://github.com/OWNER/game-balancer.git
 cd game-balancer
 pip install -e .                          # optional: adds a `balancer` command
-python -m unittest discover tests         # 18 tests, ~5 s
+python -m unittest discover tests         # 18 tests, ~3 s
 python -m balancer list                   # games, presets, tunable parameters
 python -m balancer simulate --preset planted_card
 python -m balancer evaluate               # the full evaluation (~3 min on 1 core)
 ```
+
+## Web demo
+
+```bash
+python -m balancer web
+```
+
+This opens http://127.0.0.1:8000 in your browser, with two tabs:
+
+- **Play:** play Ember Duel against the AI at three difficulties (Easy = random,
+  Medium = greedy, Hard = MCTS with 300 simulations per move), going first or
+  second, on the balanced game or any planted version. The page only ever
+  receives your own hand and the opponent's card count, never their cards.
+- **Balance lab:** run the analyzer on any version of the game and see the
+  findings, first-player advantage with its confidence interval, card
+  strength, and game length. Use at least 2,000 games.
+
+It uses only the Python standard library and runs your real engine and agents.
+Options: `--port 8080`, `--no-browser`, `--workers 4`. Press Ctrl+C to stop.
+
+**Demo script:** in Balance lab, run "Balanced (default)" to show a clean
+report, then "Planted: overpowered Flare" to show the tool flagging Flare.
+Switch to Play, choose Hard, and play a few turns against MCTS.
 
 ## Project layout
 
@@ -37,10 +60,10 @@ balancer/
   sim/harness.py          Parallel simulation, seat swapping, seeded records
   analysis/balance.py     Balance report: seat advantage, card strength, dead cards,
                           game length, skill-vs-luck; Wilson confidence intervals
-  analysis/ablation.py    Card ablation: whole-game card value, split by seat
   search/strategy.py      Dominant-strategy search: card-focus probe + genetic algorithm
   tune/tuner.py           Hill-climbing tuner with common random numbers and held-out verification
   evaluation/suite.py     The proposal's three evaluation claims, as runnable experiments
+  web/                    Browser front end: server.py (JSON API) + static/index.html
   __main__.py             Command-line interface
 tests/test_balancer.py
 ```
@@ -80,9 +103,6 @@ add growth (points every turn). Every number is a parameter: `python -m balancer
 # Balance report (add --luck for a skill-vs-luck check, --json out.json to save)
 python -m balancer simulate --agents mcts:100 greedy --games 500
 python -m balancer simulate --set flare.cost=2 target_points=35
-
-# Card ablation: swap each card for a reference card on the same seeds
-python -m balancer ablate --preset planted_card --reference ember --seeds 500
 
 # Dominant-strategy search
 python -m balancer probe  --preset planted_engine          # favour-one-card strategies vs greedy
@@ -185,19 +205,14 @@ Everything else (agents, reports, search, tuning, CLI) then works unchanged.
 ## Limitations and next steps
 
 - Opening-hand lift measures early-game impact; late-game cards can look weaker
-  than they are. `balancer ablate` addresses this: it replaces one player's
-  copies of a card with a reference card, replays the same seeds, and averages
-  the paired win-rate differences. In greedy self-play on the default game it
-  rates `inferno` the strongest card (+22% over `ember`), even though its
-  opening-hand lift is slightly negative. Values are relative to the reference
-  card, so pick a reference you consider fair.
+  than they are. A "drawn by turn k" variant or an ablation (replace a card
+  with a vanilla one and re-simulate) would be stronger.
 - MCTS beats greedy only moderately in this simple race game. Better heuristics,
   more iterations, or ISMCTS with opponent modelling are natural extensions.
 - The tuner is (1+λ) hill climbing. CMA-ES or a GA over parameters, or
   Bayesian optimization, would scale better to many parameters.
-- Opening-hand lifts are pooled over both seats. The ablation report splits
-  card value by seat and flags cards that are much stronger going first or
-  second (`[seat_card]`).
+- Per-card lifts are pooled over both seats; splitting by seat can reveal cards
+  that are only strong going first.
 
 ## Suggested team split
 

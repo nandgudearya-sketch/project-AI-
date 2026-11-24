@@ -8,7 +8,7 @@ import sys
 import time
 
 from .agents import make_agent
-from .analysis import analyze, format_ablation, format_report, run_ablation, skill_gap
+from .analysis import analyze, format_report, skill_gap
 from .games import GAMES, make_game
 from .search import card_focus_probe, format_ga, format_probe, ga_search
 from .sim import Simulator, play_game
@@ -69,23 +69,6 @@ def cmd_simulate(args):
         print(f"Saved {args.json}")
 
 
-def cmd_ablate(args):
-    params = _params(args)
-    labels = make_game(args.game, params).all_action_labels()
-    t = time.time()
-    try:
-        rep = run_ablation(args.game, params, labels, args.agent, args.reference,
-                           args.seeds, workers=args.workers)
-    except (NotImplementedError, ValueError) as e:
-        sys.exit(str(e))
-    print(format_ablation(rep))
-    print(f"\n({time.time() - t:.1f}s)")
-    if args.json:
-        with open(args.json, "w") as f:
-            json.dump({"params": params, "ablation": rep.to_dict()}, f, indent=2, default=str)
-        print(f"Saved {args.json}")
-
-
 def cmd_probe(args):
     res = card_focus_probe(args.game, _params(args), args.opponent, args.games,
                            workers=args.workers)
@@ -126,6 +109,11 @@ def cmd_play(args):
         print("You win!" if rec.winner == seat else f"{args.opponent} wins.")
 
 
+def cmd_web(args):
+    from .web.server import serve
+    serve(args.host, args.port, not args.no_browser, args.workers)
+
+
 def cmd_evaluate(args):
     from .evaluation import run_all
     run_all(workers=args.workers, quick=args.quick)
@@ -148,14 +136,6 @@ def main(argv=None):
     p.add_argument("--luck-games", type=int, default=100)
     p.add_argument("--json", help="save the report as JSON")
     p.set_defaults(fn=cmd_simulate)
-
-    p = sub.add_parser("ablate", help="measure each card's value by swapping it out")
-    _common(p)
-    p.add_argument("--agent", default="greedy", help="agent used in both seats")
-    p.add_argument("--reference", default="ember", help="card swapped in as the baseline")
-    p.add_argument("--seeds", type=int, default=500, help="paired seeds per card and seat")
-    p.add_argument("--json", help="save the report as JSON")
-    p.set_defaults(fn=cmd_ablate)
 
     p = sub.add_parser("probe", help="card-focus probe for dominant strategies")
     _common(p)
@@ -186,6 +166,13 @@ def main(argv=None):
     p.add_argument("--opponent", default="mcts:200")
     p.add_argument("--seat", type=int, choices=[1, 2], default=1)
     p.set_defaults(fn=cmd_play)
+
+    p = sub.add_parser("web", help="open the browser front end (play + balance lab)")
+    p.add_argument("--host", default="127.0.0.1")
+    p.add_argument("--port", type=int, default=8000)
+    p.add_argument("--no-browser", action="store_true", help="don't open a browser tab")
+    p.add_argument("--workers", type=int, default=None)
+    p.set_defaults(fn=cmd_web)
 
     p = sub.add_parser("evaluate", help="run the full evaluation suite")
     p.add_argument("--workers", type=int, default=None)

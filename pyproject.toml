@@ -20,3 +20,6 @@ balancer = "balancer.__main__:main"
 
 [tool.setuptools.packages.find]
 include = ["balancer*"]
+
+[tool.setuptools.package-data]
+"balancer.web" = ["static/*"]
