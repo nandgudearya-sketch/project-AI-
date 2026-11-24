@@ -15,7 +15,7 @@ Pure Python 3.10+, standard library only. No installation needed.
 git clone https://github.com/nandgudearya-sketch/project-AI-.git
 cd project-AI-
 pip install -e .                          # optional: adds a `balancer` command
-python -m unittest discover tests         # 23 tests, ~1 min
+python -m unittest discover tests         # 32 tests, ~2 min
 python -m balancer list                   # games, presets, tunable parameters
 python -m balancer simulate --preset planted_card
 python -m balancer evaluate               # the full evaluation (~3 min on 1 core)
@@ -44,6 +44,12 @@ Options: `--port 8080`, `--no-browser`, `--workers 4`. Press Ctrl+C to stop.
 report, then "Planted: overpowered Flare" to show the tool flagging Flare.
 Switch to Play, choose Hard, and play a few turns against MCTS.
 
+The **Claim: new game →** link (or http://127.0.0.1:8000/games) opens a second
+page for the third game, Claim, with three tabs: **Play** Claim against the AI,
+**Balance lab** for any of the three games, and **Compare games**, the saved
+results of `python -m balancer compare`. A step-by-step presentation script is
+in [docs/PRESENTATION.md](docs/PRESENTATION.md).
+
 ## Project layout
 
 ```
@@ -53,6 +59,7 @@ balancer/
     ember.py              Ember Duel: our original card game (main test case + planted imbalances)
     nim.py                Subtraction Nim: second game proving the engine is general
     pig.py                Pig Race: push-your-luck dice game (luck, no hidden hand)
+    grid.py               Claim: a perfect-information board game
     __init__.py           Game registry
   agents/
     simple.py             random, greedy (turn planner), weighted (strategy), human
@@ -66,9 +73,11 @@ balancer/
   tune/tuner.py           Hill-climbing tuner with common random numbers and held-out verification
   evaluation/suite.py     The proposal's three evaluation claims, as runnable experiments
   evaluation/figures.py   Report charts (PNG + CSV) in docs/figures/; needs matplotlib
+  evaluation/compare.py   Same checks on every game, side by side (`balancer compare`)
   web/                    Browser front end: server.py (JSON API) + static/index.html
+                          games_api.py + static/games.html: the Claim page
   __main__.py             Command-line interface
-tests/test_balancer.py
+tests/test_balancer.py, tests/test_games.py
 docs/figures/             Generated report figures and the numbers behind them
 main.py                   Shortcut: `python main.py <command>`, or a quick tour with no command
 ```
@@ -270,6 +279,37 @@ What this means for a designer:
   same value at every skill level, so the greedy-agent results earlier in this
   README are a fair guide for them.
 
+**6. One tool, three games** (`python -m balancer compare`). The same agents and
+analyzer, with no game-specific analysis code, on three very different games:
+
+| Game | Type | First player (default rules) | Skill: MCTS-100 vs random | Planted problem | Found? |
+|---|---|---|---|---|---|
+| Ember Duel | card game, hidden hands | 49.0% (45–53%) | 100% | Flare too cheap → `dominant: flare` | PASS |
+| Nim | perfect information, solved | 98.3% at pile 13 ✓ theory | 98.5% | pile 12 → `seat: second` (theory) | PASS |
+| Claim | perfect-information board | 51.3% (47–55%) | 100% | no second-player bonus → `seat: first` (73.8%) | PASS |
+
+![Three games compared](docs/figures/game_comparison.png)
+
+Nim uses MCTS-1000 and piles 13 and 12, where that agent plays perfectly; on
+the default pile of 21 even MCTS-1000 still makes mistakes, so its answer there
+would not match theory. Ember and Claim use MCTS-50 self-play.
+
+### The third game: Claim
+
+A 4×4 board; each square shows a number from 1 to 5, dealt from the seed.
+Players take turns claiming a square and score its number plus 1 for each of
+their own squares next to it. When the board is full the higher score wins.
+There is no hidden information and no luck after the deal, so the only balance
+question is move order.
+
+- **Tuning the compensation.** With no bonus the first player wins 75% (MCTS-50).
+  A 2-point head start for the second player brings it to 51.3% (MCTS-50) and
+  50.2% (MCTS-100), so 2 is the default.
+- **Balance depends on skill here too.** With the same 2-point bonus, the greedy
+  agent (one move ahead) gives the *second* player the edge: the first player
+  scores only 38%. The right compensation depends on how well people play.
+- Presets: `planted_seat` (no bonus) and `planted_snowball` (neighbour bonus 4).
+
 ## Design decisions worth explaining in your report
 
 - **Noise is the central problem.** Simulation results are random, so
@@ -294,8 +334,9 @@ What this means for a designer:
 
 1. Create `balancer/games/yourgame.py` and subclass `Game`. Set `name`,
    `DEFAULT_PARAMS`, `PARAM_SPACE` (integer bounds for tunables) and `PRESETS`,
-   and implement the abstract methods. See `nim.py` for a minimal example and
-   `ember.py` for hidden information.
+   and implement the abstract methods. See `nim.py` for a minimal example,
+   `grid.py` (Claim) for a board game with a heuristic, and `ember.py` for
+   hidden information.
 2. Register it in `balancer/games/__init__.py`.
 3. For hidden information, implement `determinize`. For card or action
    statistics, implement `all_action_labels`, `action_label` and
