@@ -15,6 +15,9 @@ authors = [
 ]
 license = { text = "MIT" }
 
+[project.optional-dependencies]
+plots = ["matplotlib>=3.5"]
+
 [project.scripts]
 balancer = "balancer.__main__:main"
 

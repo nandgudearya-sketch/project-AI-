@@ -8,7 +8,7 @@ import sys
 import time
 
 from .agents import make_agent
-from .analysis import analyze, format_report, skill_gap
+from .analysis import analyze, format_ablation, format_report, run_ablation, skill_gap
 from .games import GAMES, make_game
 from .search import card_focus_probe, format_ga, format_probe, ga_search
 from .sim import Simulator, play_game
@@ -69,6 +69,23 @@ def cmd_simulate(args):
         print(f"Saved {args.json}")
 
 
+def cmd_ablate(args):
+    params = _params(args)
+    labels = make_game(args.game, params).all_action_labels()
+    t = time.time()
+    try:
+        rep = run_ablation(args.game, params, labels, args.agent, args.reference,
+                           args.seeds, workers=args.workers)
+    except (NotImplementedError, ValueError) as e:
+        sys.exit(str(e))
+    print(format_ablation(rep))
+    print(f"\n({time.time() - t:.1f}s)")
+    if args.json:
+        with open(args.json, "w") as f:
+            json.dump({"params": params, "ablation": rep.to_dict()}, f, indent=2, default=str)
+        print(f"Saved {args.json}")
+
+
 def cmd_probe(args):
     res = card_focus_probe(args.game, _params(args), args.opponent, args.games,
                            workers=args.workers)
@@ -119,6 +136,12 @@ def cmd_evaluate(args):
     run_all(workers=args.workers, quick=args.quick)
 
 
+def cmd_figures(args):
+    from .evaluation.figures import make_figures
+    make_figures(args.out, n_seeds=args.seeds, ladder_games=args.ladder_games,
+                 workers=args.workers)
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="balancer",
                                  description="Automated playtesting and balance tuning")
@@ -136,6 +159,14 @@ def main(argv=None):
     p.add_argument("--luck-games", type=int, default=100)
     p.add_argument("--json", help="save the report as JSON")
     p.set_defaults(fn=cmd_simulate)
+
+    p = sub.add_parser("ablate", help="measure each card's value by swapping it out")
+    _common(p)
+    p.add_argument("--agent", default="greedy", help="agent used in both seats")
+    p.add_argument("--reference", default="ember", help="card swapped in as the baseline")
+    p.add_argument("--seeds", type=int, default=500, help="paired seeds per card and seat")
+    p.add_argument("--json", help="save the report as JSON")
+    p.set_defaults(fn=cmd_ablate)
 
     p = sub.add_parser("probe", help="card-focus probe for dominant strategies")
     _common(p)
@@ -178,6 +209,13 @@ def main(argv=None):
     p.add_argument("--workers", type=int, default=None)
     p.add_argument("--quick", action="store_true")
     p.set_defaults(fn=cmd_evaluate)
+
+    p = sub.add_parser("figures", help="make report charts (needs matplotlib)")
+    p.add_argument("--out", default="docs/figures")
+    p.add_argument("--seeds", type=int, default=500, help="paired seeds for ablation")
+    p.add_argument("--ladder-games", type=int, default=120)
+    p.add_argument("--workers", type=int, default=None)
+    p.set_defaults(fn=cmd_figures)
 
     args = ap.parse_args(argv)
     args.fn(args)

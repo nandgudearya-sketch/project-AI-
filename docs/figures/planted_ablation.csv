@@ -1,0 +1,4 @@
+preset,card,value_default,value_planted,z,rank,detected
+planted_card,flare,0.0040,0.2950,12.88,1,True
+planted_engine,hearth,-0.1100,0.1210,10.49,2,True
+planted_dud,inferno,0.2230,-0.2180,-19.64,9,True

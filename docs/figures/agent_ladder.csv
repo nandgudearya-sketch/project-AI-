@@ -1,0 +1,5 @@
+strong,weak,score,ci_low,ci_high
+mcts:25,random,0.9833,0.9413,0.9954
+mcts:100,mcts:25,0.6500,0.5612,0.7295
+mcts:400,mcts:100,0.5333,0.4444,0.6202
+mcts:400,greedy,0.6333,0.5442,0.7142

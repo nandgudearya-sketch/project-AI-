@@ -9,6 +9,9 @@
 """
 from __future__ import annotations
 
+import math
+
+from ..analysis.ablation import run_ablation
 from ..analysis.balance import analyze, wilson
 from ..games import GAMES, make_game
 from ..sim.harness import Simulator, agent_score
@@ -97,6 +100,57 @@ def before_after(workers=None, log=print, games=600, verify_games=3000):
     return res
 
 
+ABLATION_CASES = [
+    # (preset, card, expected direction of the change in value vs the default game)
+    ("planted_card", "flare", +1),
+    ("planted_engine", "hearth", +1),
+    ("planted_dud", "inferno", -1),
+]
+
+
+def ablation_detection(agent="greedy", n_seeds=500, workers=None, log=print, z_min=3.0):
+    """Card ablation on each card-related planted preset. A card's ablation value
+    is relative to the reference card, so we compare it with the same card's value
+    in the default game: the planted change should move it in the expected
+    direction, by more than ``z_min`` standard errors.
+
+    Also compares ablation with opening-hand lift on the default game, the
+    comparison that motivated ablation (late-game cards look weak by lift)."""
+    cls = GAMES["ember"]
+    labels = cls().all_action_labels()
+    rows = []
+    with Simulator(workers) as sim:
+        base = run_ablation("ember", cls.preset_params(), labels, agent,
+                            n_seeds=n_seeds, sim=sim)
+        base_by = {c.label: c for c in base.cards}
+        lift_rep = analyze(sim.match("ember", cls.preset_params(), [agent, agent],
+                                     2 * n_seeds, 11), labels)
+        for preset, card, sign in ABLATION_CASES:
+            rep = run_ablation("ember", cls.preset_params(preset), labels, agent,
+                               n_seeds=n_seeds, sim=sim)
+            now = next(c for c in rep.cards if c.label == card)
+            was = base_by[card]
+            delta = now.value - was.value
+            z = delta / math.sqrt(now.se ** 2 + was.se ** 2)
+            ok = sign * z > z_min
+            rows.append(dict(preset=preset, card=card, before=was.value,
+                             after=now.value, delta=delta, z=z, detected=ok,
+                             rank=[c.label for c in rep.cards].index(card) + 1))
+            if log:
+                log(f"  {preset:<16} {card:<8} value {was.value:+6.1%} -> {now.value:+6.1%}"
+                    f"  (z={z:+5.1f}, rank {rows[-1]['rank']}/{len(rep.cards)})"
+                    f"  -> {'PASS' if ok else 'FAIL'}")
+    lifts = {c.label: c.lift for c in lift_rep.cards}
+    comparison = [dict(card=c.label, ablation=c.value, lift=lifts[c.label])
+                  for c in base.cards]
+    if log:
+        log("\n  Default game: ablation value vs opening-hand lift")
+        log(f"  {'card':<10}{'ablation':>10}{'OH lift':>10}")
+        for r in comparison:
+            log(f"  {r['card']:<10}{r['ablation']:>+10.1%}{r['lift']:>+10.1%}")
+    return dict(cases=rows, comparison=comparison, baseline=base)
+
+
 def run_all(workers=None, quick=False, log=print):
     scale = 0.25 if quick else 1.0
     log("\n[1] Planted imbalance detection (greedy self-play)")
@@ -108,3 +162,5 @@ def run_all(workers=None, quick=False, log=print):
     log("\n[3] Before/after tuning of the planted seat imbalance")
     before_after(workers=workers, log=log, games=int(600 * scale),
                  verify_games=int(3000 * scale))
+    log("\n[4] Card ablation: planted card changes detected on paired seeds")
+    ablation_detection(n_seeds=int(500 * scale), workers=workers, log=log)

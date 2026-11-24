@@ -37,9 +37,13 @@ class GameRecord:
         return 1.0 if self.winner == seat else 0.0
 
 
-def play_game(game, agents, seed: int, seats=None) -> GameRecord:
+def play_game(game, agents, seed: int, seats=None, ablation=None) -> GameRecord:
+    """``ablation`` is an optional (player, label, replacement) tuple: that
+    player's copies of ``label`` are swapped for ``replacement`` before play."""
     rng = random.Random(seed * 1_000_003 + 17)
     s = game.initial_state(seed)
+    if ablation is not None:
+        game.ablate(s, *ablation)
     opening = [sorted(game.opening_labels(s, p)) for p in range(game.num_players)]
     plays = [dict() for _ in range(game.num_players)]
     n = 0
@@ -67,10 +71,10 @@ def play_game(game, agents, seed: int, seats=None) -> GameRecord:
 
 
 def _play_job(job) -> GameRecord:
-    game_name, params, seats, seed = job
+    game_name, params, seats, seed, *rest = job   # optional 5th item: ablation
     game = make_game(game_name, params)
     agents = [make_agent(spec) for spec in seats]
-    return play_game(game, agents, seed, seats)
+    return play_game(game, agents, seed, seats, ablation=rest[0] if rest else None)
 
 
 def match_jobs(game_name, params, specs, n_games, base_seed=0, swap=True):
