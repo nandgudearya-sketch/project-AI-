@@ -1,4 +1,4 @@
-# Presentation guide: Analysis + the third game (Claim)
+# Presentation guide: Analysis + my new game (Claim)
 
 A script for presenting my part of the project, with what to click and what to
 say. About 6–8 minutes.
@@ -48,7 +48,7 @@ Show `docs/figures/card_value_by_skill.png`.
 > **weaker** (−4% → −17%). Designers usually playtest with friends, not
 > experts, so they would underrate Inferno and overrate Hearth."
 
-## 4. The third game: Claim (2 minutes, live)
+## 4. My new game: Claim (2 minutes, live)
 
 Click **Claim: new game →** at the top of the Ember Duel page.
 

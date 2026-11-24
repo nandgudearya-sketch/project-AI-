@@ -35,6 +35,8 @@ GAME_INFO = {
 # makes mistakes, so the measured answer there would not be trustworthy.
 GAME_AGENT = {"nim": "mcts:1000"}
 GAME_PARAMS = {"nim": ({"pile": 13, "max_take": 3}, {"pile": 12, "max_take": 3})}
+# Games whose balanced version is a preset rather than the default rules.
+GAME_BASE_PRESET: dict = {}
 GAME_NOTES = {"nim": "piles 13 and 12 are used; theory says pile 13 is a first-player "
                      "win, so seat:first is the correct answer there"}
 
@@ -79,7 +81,8 @@ def compare_games(games=None, agent="mcts:50", strong="mcts:100", n_games=600,
             if name in GAME_PARAMS:
                 base, pp = GAME_PARAMS[name]
             else:
-                base, pp = cls.preset_params(), cls.preset_params(preset)
+                base = cls.preset_params(GAME_BASE_PRESET.get(name))
+                pp = cls.preset_params(preset)
             rep = analyze(sim.match(name, base, [a, a], n_games, 101), labels)
             luck = skill_gap(name, base, strong, "random", skill_games, 202, sim=sim)
             if log:
@@ -128,7 +131,7 @@ def compare_figure(rows, out_dir="docs/figures", name="game_comparison"):
     from .figures import BLUE, INK, INK2, MUTED, SURFACE, _pct, _plt, _save
     plt = _plt()
     os.makedirs(out_dir, exist_ok=True)
-    titles = {"ember": "Ember Duel", "nim": "Nim (pile 13)", "grid": "Claim"}
+    titles = {"ember": "Ember Duel", "nim": "Nim (pile 13)", "pig": "Pig Race", "grid": "Claim"}
     names = [titles.get(r.game, r.game) for r in rows]
     fig, (a1, a2) = plt.subplots(1, 2, figsize=(8, 3.6), sharey=False)
     for ax, vals, cis, title, ref, ref_label in (

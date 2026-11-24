@@ -45,7 +45,7 @@ report, then "Planted: overpowered Flare" to show the tool flagging Flare.
 Switch to Play, choose Hard, and play a few turns against MCTS.
 
 The **Claim: new game →** link (or http://127.0.0.1:8000/games) opens a second
-page for the third game, Claim, with three tabs: **Play** Claim against the AI,
+page for my new game, Claim, with three tabs: **Play** Claim against the AI,
 **Balance lab** for any of the three games, and **Compare games**, the saved
 results of `python -m balancer compare`. A step-by-step presentation script is
 in [docs/PRESENTATION.md](docs/PRESENTATION.md).
@@ -294,7 +294,7 @@ Nim uses MCTS-1000 and piles 13 and 12, where that agent plays perfectly; on
 the default pile of 21 even MCTS-1000 still makes mistakes, so its answer there
 would not match theory. Ember and Claim use MCTS-50 self-play.
 
-### The third game: Claim
+### New game: Claim
 
 A 4×4 board; each square shows a number from 1 to 5, dealt from the seed.
 Players take turns claiming a square and score its number plus 1 for each of

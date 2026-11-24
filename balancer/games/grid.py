@@ -1,4 +1,4 @@
-"""Claim: a perfect-information board game (fourth test game: first-move advantage).
+"""Claim: a perfect-information board game (test game for first-move advantage).
 
 Rules
 -----

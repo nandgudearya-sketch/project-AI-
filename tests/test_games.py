@@ -10,7 +10,7 @@ from balancer.sim import play_game
 
 class TestClaim(unittest.TestCase):
     def test_registered(self):
-        self.assertEqual(set(GAMES), {"ember", "nim", "grid"})
+        self.assertIn("grid", GAMES)
 
     def test_random_games_fill_the_board(self):
         g = make_game("grid")
